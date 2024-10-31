@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Results</title>
+</head>
+<body>
+    <h1>Results</h1>
+    {% if results %}
+        <table border="1">
+            <tr>
+                <th>Facility Name</th>
+                <th>Facility ID</th>
+                <th>First Tee Time</th>
+                <th>Last Tee Time</th>
+                <th>Error (if any)</th>
+            </tr>
+            {% for result in results %}
+            <tr>
+                <td>{{ result.facility_name }}</td>
+                <td>{{ result.facility_id }}</td>
+                <td>{{ result.first_tee_time }}</td>
+                <td>{{ result.last_tee_time }}</td>
+                <td>{{ result.error if result.error else '' }}</td>
+            </tr>
+            {% endfor %}
+        </table>
+    {% else %}
+        <p>No results to display.</p>
+    {% endif %}
+    <a href="/">Go Back</a>
+</body>
+</html>

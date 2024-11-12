@@ -6,6 +6,7 @@ from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
+from selenium.common.exceptions import TimeoutException
 
 app = Flask(__name__)
 app.secret_key = "secret_key"
@@ -43,53 +44,53 @@ def upload_file():
             file.save(file_path)
             facilities = read_facilities_from_csv(file_path)
 
-                    # Initialize the Selenium WebDriver with headless options
-        service = Service("/usr/local/bin/chromedriver")  # Adjust path if necessary
-        options = webdriver.ChromeOptions()
-        options.add_argument("--headless")
-        options.add_argument("--no-sandbox")
-        options.add_argument("--disable-dev-shm-usage")
-        driver = webdriver.Chrome(service=service, options=options)
+            # Initialize the Selenium WebDriver
+            service = Service("./chromedriver")
+            driver = webdriver.Chrome(service=service)
 
-        results = []
-        for facility_name, facility_id in facilities:
-            url = f"https://golfnow.co.uk/tee-times/facility/{facility_id}/search"
-            driver.get(url)
+            results = []
+            for facility_name, facility_id in facilities:
+                url = f"https://golfnow.co.uk/tee-times/facility/{facility_id}/search"
+                driver.get(url)
+                
+                try:
+                    elements = WebDriverWait(driver, 2).until(
+                        EC.presence_of_all_elements_located((By.CLASS_NAME, "time-meridian"))
+                    )
 
-            try:
-                elements = WebDriverWait(driver, 10).until(
-                    EC.presence_of_all_elements_located((By.CLASS_NAME, "time-meridian"))
-                )
+                    # Process results if elements are found
+                    if elements:
+                        first_element_text = elements[0].text
+                        last_element_text = elements[-1].text
+                        results.append({
+                            "facility_name": facility_name,
+                            "facility_id": facility_id,
+                            "first_tee_time": first_element_text,
+                            "last_tee_time": last_element_text
+                        })
+                    else:
+                        # In case no elements were found
+                        results.append({
+                            "facility_name": facility_name,
+                            "facility_id": facility_id,
+                            "first_tee_time": "No tee time found",
+                            "last_tee_time": "No tee time found"
+                        })
 
-                if elements:
-                    first_element_text = elements[0].text
-                    last_element_text = elements[-1].text
-                    results.append({
-                        "facility_name": facility_name,
-                        "facility_id": facility_id,
-                        "first_tee_time": first_element_text,
-                        "last_tee_time": last_element_text
-                    })
-                else:
+                except TimeoutException:
+                    # Handle timeout cases where no elements are found within the wait time
                     results.append({
                         "facility_name": facility_name,
                         "facility_id": facility_id,
                         "first_tee_time": "No tee time found",
                         "last_tee_time": "No tee time found"
                     })
-            except Exception as e:
-                results.append({
-                    "facility_name": facility_name,
-                    "facility_id": facility_id,
-                    "error": f"Error occurred: {str(e)}"
-                })
 
-        driver.quit()
-
-        return render_template("results.html", results=results)
-
+            driver.quit()
+            return render_template("results.html", results=results)
+    
     return render_template("upload.html")
 
 # Run the Flask app
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000)
+    app.run(debug=True)

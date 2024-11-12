@@ -79,7 +79,7 @@ def upload_file():
                 
                 try:
                     driver.get(url)
-                    elements = WebDriverWait(driver, 2).until(
+                    elements = WebDriverWait(driver, 10).until(
                         EC.presence_of_all_elements_located((By.CLASS_NAME, "time-meridian"))
                     )
 

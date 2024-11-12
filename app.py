@@ -13,20 +13,27 @@ from selenium.common.exceptions import TimeoutException
 # Initialize Flask app
 app = Flask(__name__)
 app.secret_key = "secret_key"
-UPLOAD_FOLDER = "/home/ubuntu/uploads"  # Use an absolute path for consistency
+UPLOAD_FOLDER = "/home/ubuntu/uploads"  # Absolute path for consistency
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
 
-# Set up logging
-log_file_path = "/home/ubuntu/app.log"  # Use absolute path for the log file
-logging.basicConfig(level=logging.DEBUG, format="%(asctime)s %(levelname)s:%(message)s")
+# Configure detailed logging
+log_file_path = "/home/ubuntu/app.log"  # Absolute path for log file
+logging.basicConfig(
+    filename=log_file_path,
+    level=logging.DEBUG,  # Ensure we capture all debug logs
+    format="%(asctime)s %(levelname)s [%(filename)s:%(lineno)d] %(message)s"
+)
 
-# Ensure Flask's app.logger is also configured
+# Add FileHandler for Flask app logger
 file_handler = logging.FileHandler(log_file_path)
 file_handler.setLevel(logging.DEBUG)
-file_handler.setFormatter(logging.Formatter("%(asctime)s %(levelname)s:%(message)s"))
+file_handler.setFormatter(logging.Formatter("%(asctime)s %(levelname)s [%(filename)s:%(lineno)d] %(message)s"))
 app.logger.addHandler(file_handler)
 app.logger.debug("Flask app initialized with FileHandler.")
+
+# Confirm logging level and handlers
+app.logger.debug(f"Logger level set to DEBUG. Handlers: {app.logger.handlers}")
 
 # Function to read facility names and IDs from a CSV file
 def read_facilities_from_csv(file_path):
@@ -39,7 +46,7 @@ def read_facilities_from_csv(file_path):
                 facility_name = row['facility_name'].strip()
                 facility_id = row['facility_id'].strip()
                 facilities.append((facility_name, facility_id))
-        app.logger.debug(f"Facilities found: {facilities}")
+        app.logger.debug(f"Facilities parsed: {facilities}")
     except Exception as e:
         app.logger.error(f"Error reading CSV file: {e}")
     return facilities
@@ -47,7 +54,7 @@ def read_facilities_from_csv(file_path):
 # Route to render the upload form and display results
 @app.route("/", methods=["GET", "POST"])
 def upload_file():
-    app.logger.debug("Upload file route called.")
+    app.logger.debug("Entering upload_file route.")
     if request.method == "POST":
         if "file" not in request.files:
             flash("No file uploaded.")
@@ -67,7 +74,7 @@ def upload_file():
 
             facilities = read_facilities_from_csv(file_path)
 
-            # Initialize the Selenium WebDriver with headless options
+            # Initialize Selenium WebDriver with headless options
             options = Options()
             options.add_argument("--headless")
             options.add_argument("--no-sandbox")
@@ -82,8 +89,8 @@ def upload_file():
             results = []
             for facility_name, facility_id in facilities:
                 url = f"https://golfnow.co.uk/tee-times/facility/{facility_id}/search"
-                app.logger.debug(f"Accessing URL: {url} for facility {facility_name} with ID {facility_id}")
-                
+                app.logger.debug(f"Fetching URL: {url} for facility {facility_name} with ID {facility_id}")
+
                 try:
                     driver.get(url)
                     elements = WebDriverWait(driver, 2).until(
@@ -99,7 +106,7 @@ def upload_file():
                             "first_tee_time": first_element_text,
                             "last_tee_time": last_element_text
                         })
-                        app.logger.debug(f"Times found for {facility_name}: First - {first_element_text}, Last - {last_element_text}")
+                        app.logger.debug(f"Times for {facility_name}: First - {first_element_text}, Last - {last_element_text}")
                     else:
                         results.append({
                             "facility_name": facility_name,
@@ -118,7 +125,7 @@ def upload_file():
                         "last_tee_time": "No tee time found"
                     })
                 except Exception as e:
-                    app.logger.error(f"Error occurred for {facility_name} (ID: {facility_id}): {str(e)}")
+                    app.logger.error(f"Error for {facility_name} (ID: {facility_id}): {str(e)}")
                     results.append({
                         "facility_name": facility_name,
                         "facility_id": facility_id,
@@ -129,9 +136,11 @@ def upload_file():
             app.logger.debug("WebDriver closed.")
 
             return render_template("results.html", results=results)
-    
+
+    app.logger.debug("Rendering upload form.")
     return render_template("upload.html")
 
 # Run the Flask app
 if __name__ == "__main__":
+    app.logger.debug("Starting Flask app.")
     app.run(host="0.0.0.0", port=5000, debug=True)
